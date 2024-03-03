@@ -1,0 +1,86 @@
+version: '3.8'
+
+services:
+  mssql:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: mssql
+    hostname: mssql
+    environment:
+      ACCEPT_EULA: Y
+      MSSQL_SA_PASSWORD: adiosplofe12@@
+    ports:
+      - "1433:1433"
+    restart: unless-stopped
+    volumes:
+      - mssql_data:/var/opt/mssql
+    networks:
+      - mssql
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:5.5.3
+    container_name: zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - 2181:2181
+
+  kafka:
+    image: confluentinc/cp-enterprise-kafka:5.5.3
+    container_name: kafka
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181      
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    links:
+      - zookeeper
+    ports:
+      - '9092:9092'
+
+  minio:
+    image: bitnami/minio:latest
+    container_name: minio
+    ports:
+      - 9000:9000
+      - 9001:9001
+    environment:
+      - MINIO_ROOT_USER=minio
+      - MINIO_ROOT_PASSWORD=adiosplofe12@@
+    volumes:
+      - minio:/bitnami/minio/data
+
+  trino:
+    image: trinodb/trino:latest
+    container_name: trino
+    environment:
+      - TRINO_ENVIRONMENT=dev
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
+  metabase:
+    image: metabase/metabase
+    container_name: metabase
+    ports:
+      - 3000:3000
+
+  demo-script:
+    container_name: demo-script
+    build: src/
+    command: ["tail", "-f", "/dev/null"]
+    networks:
+      - mssql
+    volumes:
+      - ./src/insert_data.py:/home/app/insert_data.py
+
+volumes:
+  mssql_data:
+    driver: local
+  minio:
+    driver: local
+
+networks:
+  mssql:
+    driver: bridge
