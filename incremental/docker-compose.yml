@@ -16,29 +16,6 @@ services:
     networks:
       - mssql
 
-  zookeeper:
-    image: confluentinc/cp-zookeeper:5.5.3
-    container_name: zookeeper
-    environment:
-      ZOOKEEPER_CLIENT_PORT: 2181
-      ZOOKEEPER_TICK_TIME: 2000
-    ports:
-      - 2181:2181
-
-  kafka:
-    image: confluentinc/cp-enterprise-kafka:5.5.3
-    container_name: kafka
-    depends_on:
-      - zookeeper
-    environment:
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181      
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-    links:
-      - zookeeper
-    ports:
-      - '9092:9092'
-
   minio:
     image: bitnami/minio:latest
     container_name: minio
@@ -56,16 +33,27 @@ services:
     container_name: trino
     environment:
       - TRINO_ENVIRONMENT=dev
+    volumes:
+      - ./config/hive.properties:/etc/catalog/hive.properties
     ports:
       - "8080:8080"
     restart: unless-stopped
+
+  hive:
+    image: apache/hive:3.1.3
+    container_name: hive
+    environment:
+      - SERVICE_NAME=hiveserver2
+    ports:
+      - 10000:10000
+      - 10002:10002
 
   metabase:
     image: metabase/metabase
     container_name: metabase
     ports:
       - 3000:3000
-
+    
   demo-script:
     container_name: demo-script
     build: src/
