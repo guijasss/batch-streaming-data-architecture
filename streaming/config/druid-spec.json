@@ -1,0 +1,54 @@
+{
+  "type": "kafka",
+  "spec": {
+    "ioConfig": {
+      "type": "kafka",
+      "consumerProperties": {
+        "bootstrap.servers": "kafka:29092"
+      },
+      "topic": "demo.demo.dbo.Sales",
+      "inputFormat": {
+        "type": "kafka",
+        "keyFormat": {
+          "type": "json"
+        },
+        "valueFormat": {
+          "type": "json"
+        }
+      },
+      "useEarliestOffset": true
+    },
+    "tuningConfig": {
+      "type": "kafka"
+    },
+    "dataSchema": {
+      "dataSource": "demo.demo.dbo.Sales",
+      "timestampSpec": {
+        "column": "kafka.timestamp",
+        "format": "millis"
+      },
+      "dimensionsSpec": {
+        "dimensions": [
+          {
+            "type": "json",
+            "name": "schema"
+          },
+          {
+            "type": "json",
+            "name": "payload"
+          },
+          "kafka.topic",
+          {
+            "type": "json",
+            "name": "kafka.key"
+          }
+        ]
+      },
+      "granularitySpec": {
+        "queryGranularity": "none",
+        "rollup": false,
+        "segmentGranularity": "day"
+      }
+    }
+  }
+}

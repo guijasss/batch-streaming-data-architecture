@@ -1,0 +1,39 @@
+<configuration>
+    <property>
+        <name>metastore.task.threads.always</name>
+        <value>org.apache.hadoop.hive.metastore.events.EventCleanerTask,org.apache.hadoop.hive.metastore.MaterializationsCacheCleanerTask</value>
+    </property>
+
+    <property>
+        <name>metastore.expression.proxy</name>
+        <value>org.apache.hadoop.hive.metastore.DefaultPartitionExpressionProxy</value>
+    </property>
+
+    <property>
+        <name>javax.jdo.option.ConnectionUserName</name>
+        <value>admin</value>
+    </property>
+
+    <property>
+        <name>javax.jdo.option.ConnectionPassword</name>
+        <value>admin</value>
+    </property>
+
+    <property>
+        <name>fs.s3a.access.key</name>
+        <value>iZkiKU8ggIQwI2CQyWmI</value>
+    </property>
+    <property>
+        <name>fs.s3a.secret.key</name>
+        <value>Tw6aNR7OdUaUhr7GphtwI8KndwdDJWssUPezASZJ</value>
+    </property>
+    <property>
+        <name>fs.s3a.endpoint</name>
+        <value>http://minio:9000</value>
+    </property>
+    <property>
+        <name>fs.s3a.path.style.access</name>
+        <value>true</value>
+    </property>
+
+</configuration>

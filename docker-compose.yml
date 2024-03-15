@@ -1,0 +1,293 @@
+version: '3.8'
+
+services:
+  mssql:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: mssql
+    hostname: mssql
+    environment:
+      ACCEPT_EULA: Y
+      MSSQL_SA_PASSWORD: adiosplofe12@@
+    ports:
+      - "1433:1433"
+    restart: unless-stopped
+    volumes:
+      - mssql_data:/var/opt/mssql
+    networks:
+      - mssql
+    profiles:
+      - batch
+      - streaming
+
+  minio:
+    image: bitnami/minio:latest
+    hostname: minio
+    container_name: minio
+    ports:
+      - 9000:9000
+      - 9001:9001
+    environment:
+      - MINIO_ROOT_USER=minio
+      - MINIO_ROOT_PASSWORD=adiosplofe12@@
+    volumes:
+      - minio:/bitnami/minio/data
+    networks:
+      - mssql
+    profiles:
+      - batch
+
+  # trino:
+  #   image: trinodb/trino:latest
+  #   container_name: trino
+  #   hostname: trino
+  #   environment:
+  #     - TRINO_ENVIRONMENT=dev
+  #   volumes:
+  #     - ./etc/catalog/hive.properties:/etc/trino/catalog/hive.properties
+  #     - ./jars/hadoop-aws-3.3.6.jar:/usr/lib/trino/lib/hadoop-aws-3.3.6.jar
+  #     - ./jars/hadoop-common-3.3.6.jar:/usr/lib/trino/lib/hadoop-common-3.3.6.jar
+  #   ports:
+  #     - 8080:8080
+  #   networks:
+  #     - mssql
+  #   depends_on:
+  #     - metastore
+
+  # metastore:
+  #   image: apache/hive:3.1.3
+  #   container_name: metastore
+  #   hostname: hive
+  #   ports:
+  #     - 9083:9083
+  #   environment:
+  #     - SERVICE_NAME=metastore
+  #   networks:
+  #     - mssql
+  #   volumes:
+  #     - ./config/hive-site.xml:/opt/hive/conf/hive-site.xml
+  #     - ./jars/hadoop-aws-3.1.3.jar:/opt/hive/lib/hadoop-aws-3.1.3.jar
+  #     - ./jars/hadoop-client-3.1.3.jar:/opt/hive/lib/hadoop-client-3.1.3.jar
+  #     - ./jars/hadoop-common-3.3.6.jar:/opt/hive/lib/hadoop-common-3.3.6.jar
+  #     - ./jars/guava-31.1-jre.jar:/opt/hive/lib/guava-31.1-jre.jar
+
+  metabase:
+    image: metabase/metabase
+    container_name: metabase
+    ports: 
+      - 3000:3000
+    networks:
+      - mssql
+    profiles:
+      - streaming
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.2.2
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    profiles:
+      - streaming
+
+  kafka:
+    image: confluentinc/cp-kafka:7.2.2
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: "zookeeper:2181"
+      KAFKA_LISTENERS: LISTENER_1://kafka:29092,LISTENER_2://kafka:9092
+      KAFKA_ADVERTISED_LISTENERS: LISTENER_1://kafka:29092,LISTENER_2://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: LISTENER_1:PLAINTEXT,LISTENER_2:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: LISTENER_1
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      CONFLUENT_SUPPORT_CUSTOMER_ID: "anonymous"
+      KAFKA_DELETE_TOPIC_ENABLE: "true"
+    # networks:
+    #   - mssql
+    profiles:
+      - streaming
+
+  connect:
+    image: confluentinc/cp-kafka-connect:7.2.5
+    container_name: connect
+    hostname: connect
+    ports:
+      - 35000:35000
+      - 8092:8083
+    depends_on:
+      - kafka
+    environment:
+      KAFKA_JMX_PORT: 35000
+      KAFKA_JMX_HOSTNAME: localhost
+      CONNECT_BOOTSTRAP_SERVERS: "kafka:29092"
+      CONNECT_REST_ADVERTISED_HOST_NAME: connect
+      CONNECT_REST_PORT: 8083
+      CONNECT_GROUP_ID: connect-cluster-group
+      CONNECT_CONFIG_STORAGE_TOPIC: docker-connect-configs
+      CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_OFFSET_FLUSH_INTERVAL_MS: 10000
+      CONNECT_OFFSET_STORAGE_TOPIC: docker-connect-offsets
+      CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_STATUS_STORAGE_TOPIC: docker-connect-status
+      CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_ZOOKEEPER_CONNECT: "zookeeper:2181"
+      CONNECT_PLUGIN_PATH: "/usr/share/java,/usr/share/confluent-hub-components"
+      CONNECT_CONNECTIONS_MAX_IDLE_MS: 180000
+      CONNECT_METADATA_MAX_AGE_MS: 180000
+      CONNECT_AUTO_CREATE_TOPICS_ENABLE: "true"
+      CONNECT_KEY_CONVERTER: "org.apache.kafka.connect.json.JsonConverter"
+      CONNECT_VALUE_CONVERTER: "org.apache.kafka.connect.json.JsonConverter"
+    networks:
+      - mssql
+    volumes:
+      - kafka-connect:/etc/kafka/
+      - kafka-connect:/etc/schema-registry/
+      - kafka-connect:/etc/kafka-connect/
+      - kafka-connect:/usr/share/confluent-hub-components/
+    profiles:
+      - streaming
+    
+  demo-script:
+    container_name: demo-script
+    build: source-app/
+    command: ["tail", "-f", "/dev/null"]
+    networks:
+      - mssql
+    volumes:
+      - ./source-app/insert_data.py:/home/app/insert_data.py
+    profiles:
+      - batch
+
+  # druid:
+  #   build:
+  #     context: ../near-real-time/docker
+  #     dockerfile: druid.Dockerfile
+  #   container_name: druid
+  #   hostname: druid
+  #   volumes:
+  #     - druid:/opt/apache-druid-29.0.0/data/var
+  #     - druid:/opt/apache-druid-29.0.0/data/segments
+  #   ports:
+  #     - 8081:8081
+  #     - 8082:8082
+  #     - 8888:8888
+  #   networks:
+  #     - mssql
+
+  postgres:
+    image: postgres:latest
+    ports:
+      - "5432:5432"
+    volumes:
+      - metadata_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_PASSWORD=FoolishPassword
+      - POSTGRES_USER=druid
+      - POSTGRES_DB=druid
+    profiles:
+      - streaming
+
+  coordinator:
+    image: apache/druid:29.0.0
+    volumes:
+      - druid_shared:/opt/shared
+      - coordinator_var:/opt/druid/var
+    depends_on:
+      - postgres
+    ports:
+      - "8081:8081"
+    command:
+      - coordinator
+    env_file:
+      - streaming/druid-environment
+    profiles:
+      - streaming
+
+  broker:
+    image: apache/druid:29.0.0
+    volumes:
+      - broker_var:/opt/druid/var
+    depends_on:
+      - postgres
+      - coordinator
+    ports:
+      - "8082:8082"
+    command:
+      - broker
+    env_file:
+      - streaming/druid-environment
+    profiles:
+      - streaming
+
+  historical:
+    image: apache/druid:29.0.0
+    volumes:
+      - druid_shared:/opt/shared
+      - historical_var:/opt/druid/var
+    depends_on:
+      - postgres
+      - coordinator
+    ports:
+      - "8083:8083"
+    command:
+      - historical
+    env_file:
+      - streaming/druid-environment
+    profiles:
+      - streaming
+
+  middlemanager:
+    image: apache/druid:29.0.0
+    volumes:
+      - druid_shared:/opt/shared
+      - middle_var:/opt/druid/var
+    depends_on:
+      - postgres
+      - coordinator
+    ports:
+      - "8091:8091"
+      - "8100-8105:8100-8105"
+    command:
+      - middleManager
+    env_file:
+      - streaming/druid-environment
+    profiles:
+      - streaming
+
+  router:
+    image: apache/druid:29.0.0
+    volumes:
+      - router_var:/opt/druid/var
+    depends_on:
+      - postgres
+      - coordinator
+    ports:
+      - "8888:8888"
+    command:
+      - router
+    env_file:
+      - streaming/druid-environment
+    profiles:
+      - streaming
+
+volumes:
+  mssql_data:
+    driver: local
+  minio:
+    driver: local
+  kafka-connect:
+    driver: local
+  druid:
+    driver: local
+  metadata_data: {}
+  middle_var: {}
+  historical_var: {}
+  broker_var: {}
+  coordinator_var: {}
+  router_var: {}
+  druid_shared: {}
+
+networks:
+  mssql:
+    driver: bridge
