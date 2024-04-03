@@ -1,4 +1,4 @@
-version: '3.8'
+version: '3'
 
 services:
   mssql:
@@ -14,7 +14,7 @@ services:
     volumes:
       - mssql_data:/var/opt/mssql
     networks:
-      - mssql
+      - pipeline-net
     profiles:
       - batch
       - streaming
@@ -32,7 +32,7 @@ services:
     volumes:
       - minio:/bitnami/minio/data
     networks:
-      - mssql
+      - pipeline-net
     profiles:
       - batch
 
@@ -75,26 +75,17 @@ services:
     container_name: metabase
     ports: 
       - 3000:3000
-    networks:
-      - mssql
-    profiles:
-      - streaming
-
-  zookeeper:
-    image: confluentinc/cp-zookeeper:7.2.2
-    environment:
-      ZOOKEEPER_CLIENT_PORT: 2181
-      ZOOKEEPER_TICK_TIME: 2000
-    profiles:
-      - streaming
 
   kafka:
     image: confluentinc/cp-kafka:7.2.2
+    container_name: kafka
     depends_on:
       - zookeeper
+    ports:
+      - 9092:9092
     environment:
       KAFKA_BROKER_ID: 1
-      KAFKA_ZOOKEEPER_CONNECT: "zookeeper:2181"
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
       KAFKA_LISTENERS: LISTENER_1://kafka:29092,LISTENER_2://kafka:9092
       KAFKA_ADVERTISED_LISTENERS: LISTENER_1://kafka:29092,LISTENER_2://localhost:9092
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: LISTENER_1:PLAINTEXT,LISTENER_2:PLAINTEXT
@@ -103,79 +94,17 @@ services:
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
       CONFLUENT_SUPPORT_CUSTOMER_ID: "anonymous"
       KAFKA_DELETE_TOPIC_ENABLE: "true"
-    # networks:
-    #   - mssql
-    profiles:
-      - streaming
 
-  connect:
-    image: confluentinc/cp-kafka-connect:7.2.5
-    container_name: connect
-    hostname: connect
+  zookeeper:
+    container_name: zookeeper
+    image: zookeeper:3.5.10
     ports:
-      - 35000:35000
-      - 8092:8083
-    depends_on:
-      - kafka
+      - 2181:2181
     environment:
-      KAFKA_JMX_PORT: 35000
-      KAFKA_JMX_HOSTNAME: localhost
-      CONNECT_BOOTSTRAP_SERVERS: "kafka:29092"
-      CONNECT_REST_ADVERTISED_HOST_NAME: connect
-      CONNECT_REST_PORT: 8083
-      CONNECT_GROUP_ID: connect-cluster-group
-      CONNECT_CONFIG_STORAGE_TOPIC: docker-connect-configs
-      CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR: 1
-      CONNECT_OFFSET_FLUSH_INTERVAL_MS: 10000
-      CONNECT_OFFSET_STORAGE_TOPIC: docker-connect-offsets
-      CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR: 1
-      CONNECT_STATUS_STORAGE_TOPIC: docker-connect-status
-      CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: 1
-      CONNECT_ZOOKEEPER_CONNECT: "zookeeper:2181"
-      CONNECT_PLUGIN_PATH: "/usr/share/java,/usr/share/confluent-hub-components"
-      CONNECT_CONNECTIONS_MAX_IDLE_MS: 180000
-      CONNECT_METADATA_MAX_AGE_MS: 180000
-      CONNECT_AUTO_CREATE_TOPICS_ENABLE: "true"
-      CONNECT_KEY_CONVERTER: "org.apache.kafka.connect.json.JsonConverter"
-      CONNECT_VALUE_CONVERTER: "org.apache.kafka.connect.json.JsonConverter"
-    networks:
-      - mssql
-    volumes:
-      - kafka-connect:/etc/kafka/
-      - kafka-connect:/etc/schema-registry/
-      - kafka-connect:/etc/kafka-connect/
-      - kafka-connect:/usr/share/confluent-hub-components/
-    profiles:
-      - streaming
-    
-  demo-script:
-    container_name: demo-script
-    build: source-app/
-    command: ["tail", "-f", "/dev/null"]
-    networks:
-      - mssql
-    volumes:
-      - ./source-app/insert_data.py:/home/app/insert_data.py
-    profiles:
-      - batch
-
-  # druid:
-  #   build:
-  #     context: ../near-real-time/docker
-  #     dockerfile: druid.Dockerfile
-  #   container_name: druid
-  #   hostname: druid
-  #   volumes:
-  #     - druid:/opt/apache-druid-29.0.0/data/var
-  #     - druid:/opt/apache-druid-29.0.0/data/segments
-  #   ports:
-  #     - 8081:8081
-  #     - 8082:8082
-  #     - 8888:8888
-  #   networks:
-  #     - mssql
+      - ZOO_MY_ID=1
 
   postgres:
+    container_name: postgres
     image: postgres:latest
     ports:
       - "5432:5432"
@@ -185,30 +114,30 @@ services:
       - POSTGRES_PASSWORD=FoolishPassword
       - POSTGRES_USER=druid
       - POSTGRES_DB=druid
-    profiles:
-      - streaming
 
   coordinator:
     image: apache/druid:29.0.0
+    container_name: coordinator
     volumes:
       - druid_shared:/opt/shared
       - coordinator_var:/opt/druid/var
     depends_on:
+      - zookeeper
       - postgres
     ports:
       - "8081:8081"
     command:
       - coordinator
     env_file:
-      - streaming/druid-environment
-    profiles:
-      - streaming
+      - environment
 
   broker:
     image: apache/druid:29.0.0
+    container_name: broker
     volumes:
       - broker_var:/opt/druid/var
     depends_on:
+      - zookeeper
       - postgres
       - coordinator
     ports:
@@ -216,16 +145,16 @@ services:
     command:
       - broker
     env_file:
-      - streaming/druid-environment
-    profiles:
-      - streaming
+      - environment
 
   historical:
     image: apache/druid:29.0.0
+    container_name: historical
     volumes:
       - druid_shared:/opt/shared
       - historical_var:/opt/druid/var
-    depends_on:
+    depends_on: 
+      - zookeeper
       - postgres
       - coordinator
     ports:
@@ -233,16 +162,16 @@ services:
     command:
       - historical
     env_file:
-      - streaming/druid-environment
-    profiles:
-      - streaming
+      - environment
 
   middlemanager:
     image: apache/druid:29.0.0
+    container_name: middlemanager
     volumes:
       - druid_shared:/opt/shared
       - middle_var:/opt/druid/var
-    depends_on:
+    depends_on: 
+      - zookeeper
       - postgres
       - coordinator
     ports:
@@ -251,15 +180,15 @@ services:
     command:
       - middleManager
     env_file:
-      - streaming/druid-environment
-    profiles:
-      - streaming
+      - environment
 
   router:
     image: apache/druid:29.0.0
+    container_name: router
     volumes:
       - router_var:/opt/druid/var
     depends_on:
+      - zookeeper
       - postgres
       - coordinator
     ports:
@@ -267,9 +196,18 @@ services:
     command:
       - router
     env_file:
-      - streaming/druid-environment
+      - environment
+    
+  demo-script:
+    container_name: demo-script
+    build: source-app/
+    command: ["tail", "-f", "/dev/null"]
+    networks:
+      - pipeline-net
+    volumes:
+      - ./source-app/insert_data.py:/home/app/insert_data.py
     profiles:
-      - streaming
+      - batch
 
 volumes:
   mssql_data:
@@ -277,8 +215,6 @@ volumes:
   minio:
     driver: local
   kafka-connect:
-    driver: local
-  druid:
     driver: local
   metadata_data: {}
   middle_var: {}
@@ -289,5 +225,5 @@ volumes:
   druid_shared: {}
 
 networks:
-  mssql:
+  pipeline-net:
     driver: bridge
