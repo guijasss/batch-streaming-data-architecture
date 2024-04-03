@@ -2,6 +2,8 @@ from pyodbc import connect
 from faker import Faker
 
 from random import randint, uniform
+from argparse import ArgumentParser
+from time import sleep
 
 # Connection settings
 server = 'mssql'
@@ -13,14 +15,12 @@ driver = 'ODBC Driver 17 for SQL Server'
 url = f'DRIVER={{{driver}}};SERVER={server},1433;DATABASE={database};UID={username};PWD={password}'
 
 # Establish connection
-print(url)
 conn = connect(url)
 
 
 # Function to insert records into Sales table
 def insert_into_sales(product_id, sale_date, quantity, total_price):
     cursor = conn.cursor()
-    print(f"Sale(product_id={product_id},sale_date={sale_date},quantity={quantity},total_price={total_price})")
     sql = "INSERT INTO Sales (ProductID, SaleDate, Quantity, TotalPrice) VALUES (?, ?, ?, ?)"
     cursor.execute(sql, (product_id, sale_date, quantity, total_price))
     conn.commit()
@@ -40,23 +40,27 @@ def get_random_product():
     }
 
 if __name__ == '__main__':
+    parser = ArgumentParser()
+    parser.add_argument("--batch-size", type=int, help="Number of rows to insert in each batch.", required=True)
+    args = parser.parse_args() 
+
+    batch_size: int = args.batch_size
     fake = Faker()
-    loops = 50
 
-    for loop in range(loops):
-        product = get_random_product()
-        if product:
-            sale_date = fake.date_time_between(start_date='-1y', end_date='now')
-            quantity = randint(1, 10)
-            insert_into_sales(
-                product_id=product.get("product_id"),
-                sale_date=sale_date,
-                quantity=quantity,
-                total_price=product.get("unit_price") * quantity
-            )
-            print("Sale inserted successfully.")
-        else:
-            print("No products found in the Products table.")
-
-    # Close connection
-    conn.close()
+    while True:
+        try:
+            for loop in range(batch_size):
+                product = get_random_product()
+                if product:
+                    sale_date = fake.date_time_between(start_date='-1y', end_date='now')
+                    quantity = randint(1, 10)
+                    insert_into_sales(
+                        product_id=product.get("product_id"),
+                        sale_date=sale_date,
+                        quantity=quantity,
+                        total_price=product.get("unit_price") * quantity
+                    )
+            sleep(1)
+            print(f"{batch_size} records were inserted!")
+        except KeyboardInterrupt:
+            conn.close()
