@@ -1,2 +1,5 @@
 airbyte/
 keys/
+source-app/.idea/
+source-app/__pycache__/
+source-app/**/.ipynb_checkpoints/
