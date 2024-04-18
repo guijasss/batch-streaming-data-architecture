@@ -13,11 +13,8 @@ services:
     restart: unless-stopped
     volumes:
       - mssql_data:/var/opt/mssql
-    networks:
-      - pipeline-net
     profiles:
       - batch
-      - streaming
 
   minio:
     image: bitnami/minio:latest
@@ -31,44 +28,8 @@ services:
       - MINIO_ROOT_PASSWORD=adiosplofe12@@
     volumes:
       - minio:/bitnami/minio/data
-    networks:
-      - pipeline-net
     profiles:
       - batch
-
-  # trino:
-  #   image: trinodb/trino:latest
-  #   container_name: trino
-  #   hostname: trino
-  #   environment:
-  #     - TRINO_ENVIRONMENT=dev
-  #   volumes:
-  #     - ./etc/catalog/hive.properties:/etc/trino/catalog/hive.properties
-  #     - ./jars/hadoop-aws-3.3.6.jar:/usr/lib/trino/lib/hadoop-aws-3.3.6.jar
-  #     - ./jars/hadoop-common-3.3.6.jar:/usr/lib/trino/lib/hadoop-common-3.3.6.jar
-  #   ports:
-  #     - 8080:8080
-  #   networks:
-  #     - mssql
-  #   depends_on:
-  #     - metastore
-
-  # metastore:
-  #   image: apache/hive:3.1.3
-  #   container_name: metastore
-  #   hostname: hive
-  #   ports:
-  #     - 9083:9083
-  #   environment:
-  #     - SERVICE_NAME=metastore
-  #   networks:
-  #     - mssql
-  #   volumes:
-  #     - ./config/hive-site.xml:/opt/hive/conf/hive-site.xml
-  #     - ./jars/hadoop-aws-3.1.3.jar:/opt/hive/lib/hadoop-aws-3.1.3.jar
-  #     - ./jars/hadoop-client-3.1.3.jar:/opt/hive/lib/hadoop-client-3.1.3.jar
-  #     - ./jars/hadoop-common-3.3.6.jar:/opt/hive/lib/hadoop-common-3.3.6.jar
-  #     - ./jars/guava-31.1-jre.jar:/opt/hive/lib/guava-31.1-jre.jar
 
   metabase:
     image: metabase/metabase
@@ -95,14 +56,6 @@ services:
       CONFLUENT_SUPPORT_CUSTOMER_ID: "anonymous"
       KAFKA_DELETE_TOPIC_ENABLE: "true"
 
-  zookeeper:
-    container_name: zookeeper
-    image: zookeeper:3.5.10
-    ports:
-      - 2181:2181
-    environment:
-      - ZOO_MY_ID=1
-
   postgres:
     container_name: postgres
     image: postgres:latest
@@ -115,8 +68,17 @@ services:
       - POSTGRES_USER=druid
       - POSTGRES_DB=druid
 
+  # Need 3.5 or later for container nodes
+  zookeeper:
+    container_name: zookeeper
+    image: zookeeper:3.5.10
+    ports:
+      - "2181:2181"
+    environment:
+      - ZOO_MY_ID=1
+
   coordinator:
-    image: apache/druid:29.0.0
+    image: apache/druid:29.0.1
     container_name: coordinator
     volumes:
       - druid_shared:/opt/shared
@@ -132,7 +94,7 @@ services:
       - environment
 
   broker:
-    image: apache/druid:29.0.0
+    image: apache/druid:29.0.1
     container_name: broker
     volumes:
       - broker_var:/opt/druid/var
@@ -148,7 +110,7 @@ services:
       - environment
 
   historical:
-    image: apache/druid:29.0.0
+    image: apache/druid:29.0.1
     container_name: historical
     volumes:
       - druid_shared:/opt/shared
@@ -165,7 +127,7 @@ services:
       - environment
 
   middlemanager:
-    image: apache/druid:29.0.0
+    image: apache/druid:29.0.1
     container_name: middlemanager
     volumes:
       - druid_shared:/opt/shared
@@ -183,7 +145,7 @@ services:
       - environment
 
   router:
-    image: apache/druid:29.0.0
+    image: apache/druid:29.0.1
     container_name: router
     volumes:
       - router_var:/opt/druid/var
@@ -197,13 +159,11 @@ services:
       - router
     env_file:
       - environment
-    
+
   demo-script:
     container_name: demo-script
     build: source-app/
     command: ["tail", "-f", "/dev/null"]
-    networks:
-      - pipeline-net
     volumes:
       - ./source-app/insert_data.py:/home/app/insert_data.py
     profiles:
@@ -223,7 +183,3 @@ volumes:
   coordinator_var: {}
   router_var: {}
   druid_shared: {}
-
-networks:
-  pipeline-net:
-    driver: bridge

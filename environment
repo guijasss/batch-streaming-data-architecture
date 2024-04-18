@@ -1,3 +1,4 @@
+
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -27,7 +28,7 @@ DRUID_SINGLE_NODE_CONF=micro-quickstart
 
 druid_emitter_logging_logLevel=debug
 
-druid_extensions_loadList=["druid-histogram", "druid-datasketches", "druid-kafka-indexing-service", "druid-lookups-cached-global", "postgresql-metadata-storage", "druid-multi-stage-query"]
+druid_extensions_loadList=["druid-histogram", "druid-kafka-indexing-service", "druid-datasketches", "druid-lookups-cached-global", "postgresql-metadata-storage", "druid-multi-stage-query"]
 
 druid_zk_service_host=zookeeper
 
