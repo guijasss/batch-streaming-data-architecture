@@ -39,22 +39,43 @@
 
 * Create transactional databases
     ```sql
+    CREATE DATABASE demo;
+
     USE demo;
 
-    CREATE TABLE Products (
-        ProductID INT PRIMARY KEY,
-        ProductName NVARCHAR(100),
-        UnitPrice DECIMAL(10, 2),
-        UnitsInStock INT
+    CREATE TABLE Users (
+        id INT NOT NULL IDENTITY(1,1) PRIMARY KEY,
+        first_name VARCHAR(MAX) NOT NULL,
+        last_name VARCHAR(MAX) NOT NULL,
+        email VARCHAR(MAX) NOT NULL,
+        password VARCHAR(MAX) NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
-    CREATE TABLE Sales (
-        SaleID INT PRIMARY KEY IDENTITY(1,1),
-        ProductID INT,
-        SaleDate DATETIME,
-        Quantity INT,
-        TotalPrice DECIMAL(10, 2),
-        FOREIGN KEY (ProductID) REFERENCES Products(ProductID)
+    CREATE TABLE Products (
+        id INT NOT NULL IDENTITY(1,1) PRIMARY KEY,
+        name VARCHAR(MAX) NOT NULL,
+        sku VARCHAR(MAX),
+        price FLOAT,
+        units_in_stock SMALLINT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE Purchases (
+        id INT NOT NULL IDENTITY(1,1) PRIMARY KEY,
+        user_id INT FOREIGN KEY REFERENCES Users(id),
+        product_id INT FOREIGN KEY REFERENCES Products(id),
+        purchase_time DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE Ratings (
+        id INT NOT NULL IDENTITY(1,1) PRIMARY KEY,
+        user_id INT FOREIGN KEY REFERENCES Users(id),
+        product_id INT FOREIGN KEY REFERENCES Products(id),
+        stars INT NOT NULL,
+        comment VARCHAR(MAX)
     );
     ```
 
@@ -72,13 +93,29 @@
 
     ```sql
     USE demo
-    GO
 
     EXEC sys.sp_cdc_enable_table
     @source_schema = 'dbo',
-    @source_name   = 'Sales',
+    @source_name   = 'Products',
     @role_name     = 'adm',
     @supports_net_changes = 0
-    GO
+
+    EXEC sys.sp_cdc_enable_table
+    @source_schema = 'dbo',
+    @source_name   = 'Users',
+    @role_name     = 'adm',
+    @supports_net_changes = 0
+
+    EXEC sys.sp_cdc_enable_table
+    @source_schema = 'dbo',
+    @source_name   = 'Purchases',
+    @role_name     = 'adm',
+    @supports_net_changes = 0
+
+    EXEC sys.sp_cdc_enable_table
+    @source_schema = 'dbo',
+    @source_name   = 'Reviews',
+    @role_name     = 'adm',
+    @supports_net_changes = 0
     ```
 
