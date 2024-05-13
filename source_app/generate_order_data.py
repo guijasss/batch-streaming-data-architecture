@@ -17,7 +17,7 @@ def generate_order_data(batch_size: int) -> None:
     data_dir = "notebooks/data/ecommerce-data"
 
     orders = read_csv(f"{data_dir}/olist_orders_dataset.csv")
-    orders_batch = orders.sample(10)
+    orders_batch = orders.sample(batch_size)
     orders_batch["order_purchase_timestamp"] = orders_batch["order_purchase_timestamp"].apply(parse_timestamp)
     orders_batch["order_approved_at"] = orders_batch["order_approved_at"].apply(parse_timestamp)
     orders_batch["order_delivered_carrier_date"] = orders_batch["order_delivered_carrier_date"].apply(parse_timestamp)
@@ -50,4 +50,3 @@ if __name__ == "__main__":
 
     generate_order_data(batch_size)
     print(f"Inserted {batch_size} rows successfully!")
-    
