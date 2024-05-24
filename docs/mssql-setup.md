@@ -38,84 +38,9 @@
     ```
 
 * Create transactional databases
-    ```sql
-    CREATE DATABASE demo;
-
-    USE demo;
-
-    CREATE TABLE Users (
-        id INT NOT NULL IDENTITY(1,1) PRIMARY KEY,
-        first_name VARCHAR(MAX) NOT NULL,
-        last_name VARCHAR(MAX) NOT NULL,
-        email VARCHAR(MAX) NOT NULL,
-        password VARCHAR(MAX) NOT NULL,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-
-    CREATE TABLE Products (
-        id INT NOT NULL IDENTITY(1,1) PRIMARY KEY,
-        name VARCHAR(MAX) NOT NULL,
-        sku VARCHAR(MAX),
-        price FLOAT,
-        units_in_stock SMALLINT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-
-    CREATE TABLE Purchases (
-        id INT NOT NULL IDENTITY(1,1) PRIMARY KEY,
-        user_id INT FOREIGN KEY REFERENCES Users(id),
-        product_id INT FOREIGN KEY REFERENCES Products(id),
-        purchase_time DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-
-    CREATE TABLE Ratings (
-        id INT NOT NULL IDENTITY(1,1) PRIMARY KEY,
-        user_id INT FOREIGN KEY REFERENCES Users(id),
-        product_id INT FOREIGN KEY REFERENCES Products(id),
-        stars INT NOT NULL,
-        comment VARCHAR(MAX)
-    );
-    ```
+    - Run __../source_app/sql/setup-database.sql__ file.
 
 * Enable CDC
-    * To enable CDC, a SQL Server administrator with the necessary privileges (db_owner or sysadmin) must first run a query to enable CDC at the database level.
+    * To enable CDC, a SQL Server administrator with the necessary privileges (db_owner or sysadmin) must first run a query to enable CDC at the database level. After, you must then enable CDC for each table that you want to capture.
 
-    ```sql
-    USE demo
-    GO
-    EXEC sys.sp_cdc_enable_db
-    GO
-    ```
-
-    * The administrator must then enable CDC for each table that you want to capture. Here's an example:
-
-    ```sql
-    USE demo
-
-    EXEC sys.sp_cdc_enable_table
-    @source_schema = 'dbo',
-    @source_name   = 'Products',
-    @role_name     = 'adm',
-    @supports_net_changes = 0
-
-    EXEC sys.sp_cdc_enable_table
-    @source_schema = 'dbo',
-    @source_name   = 'Users',
-    @role_name     = 'adm',
-    @supports_net_changes = 0
-
-    EXEC sys.sp_cdc_enable_table
-    @source_schema = 'dbo',
-    @source_name   = 'Purchases',
-    @role_name     = 'adm',
-    @supports_net_changes = 0
-
-    EXEC sys.sp_cdc_enable_table
-    @source_schema = 'dbo',
-    @source_name   = 'Reviews',
-    @role_name     = 'adm',
-    @supports_net_changes = 0
-    ```
-
+    - run __../source_app/sql/enable-cdc.sql__ file.
