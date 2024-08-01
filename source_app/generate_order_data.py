@@ -13,8 +13,11 @@ def parse_timestamp(date_str):
         return datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S")
     
 
+"""
+TODO: script para baixar os dados automaticamente
+"""
 def generate_order_data(batch_size: int) -> None:
-    data_dir = "notebooks/data/ecommerce-data"
+    data_dir = "./data/ecommerce-data"
 
     orders = read_csv(f"{data_dir}/olist_orders_dataset.csv")
     orders_batch = orders.sample(batch_size)
@@ -43,7 +46,7 @@ def generate_order_data(batch_size: int) -> None:
 
 if __name__ == "__main__":
     parser = ArgumentParser()
-    parser.add_argument("--batch-size", help="How many rows to insert in table", type=int)
+    parser.add_argument("-b", "--batch-size", help="How many rows to insert in table", type=int)
     args = parser.parse_args()
 
     batch_size = args.batch_size

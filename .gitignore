@@ -4,3 +4,4 @@ source_app/.idea/
 source_app/__pycache__/
 source_app/**/.ipynb_checkpoints/
 source_app/notebooks/*.ipynb
+source_app/data/

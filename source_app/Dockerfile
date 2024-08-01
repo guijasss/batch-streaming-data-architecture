@@ -1,33 +1,41 @@
-FROM alpine:latest
+# Use Ubuntu 18.04 as the base image
+FROM ubuntu:18.04
 
-RUN wget -P /tmp https://download.microsoft.com/download/e/4/e/e4e67866-dffd-428c-aac7-8d28ddafb39b/msodbcsql17_17.9.1.1-1_amd64.apk
+# Set environment variables to avoid prompts during package installation
+ENV DEBIAN_FRONTEND=noninteractive
 
-RUN apk update && \
-    apk add --allow-untrusted --no-cache curl gnupg python3 python3-dev py3-pip bash unixodbc-dev build-base nano /tmp/msodbcsql17_17.9.1.1-1_amd64.apk
+# Update package list and install dependencies
+RUN apt-get update && \
+    apt-get install -y \
+    curl \
+    gnupg \
+    unixodbc \
+    unixodbc-dev \
+    build-essential \
+    python3 \
+    python3-pip \
+    python3-venv \
+    nano
 
-RUN case $(uname -m) in \
-        x86_64)   architecture="amd64" ;; \
-        arm64)   architecture="arm64" ;; \
-        *) architecture="unsupported" ;; \
-    esac && \
-    if [[ "unsupported" == "$architecture" ]]; then \
-        echo "Alpine architecture $(uname -m) is not currently supported."; \
-        exit 1; \
-    fi && \
-    curl -O https://download.microsoft.com/download/3/5/5/355d7943-a338-41a7-858d-53b259ea33f5/msodbcsql18_18.3.2.1-1_$architecture.apk && \
-    curl -O https://download.microsoft.com/download/3/5/5/355d7943-a338-41a7-858d-53b259ea33f5/mssql-tools18_18.3.1.1-1_$architecture.apk && \
-    curl -O https://download.microsoft.com/download/3/5/5/355d7943-a338-41a7-858d-53b259ea33f5/msodbcsql18_18.3.2.1-1_$architecture.sig && \
-    curl -O https://download.microsoft.com/download/3/5/5/355d7943-a338-41a7-858d-53b259ea33f5/mssql-tools18_18.3.1.1-1_$architecture.sig && \
-    curl https://packages.microsoft.com/keys/microsoft.asc  | gpg --import - && \
-    gpg --verify msodbcsql18_18.3.2.1-1_$architecture.sig msodbcsql18_18.3.2.1-1_$architecture.apk && \
-    gpg --verify mssql-tools18_18.3.1.1-1_$architecture.sig mssql-tools18_18.3.1.1-1_$architecture.apk && \
-    apk add --allow-untrusted msodbcsql18_18.3.2.1-1_$architecture.apk && \
-    apk add --allow-untrusted mssql-tools18_18.3.1.1-1_$architecture.apk
+# Add Microsoft repository and install ODBC Driver and SQL Server tools
+RUN curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add - && \
+    curl https://packages.microsoft.com/config/ubuntu/18.04/prod.list | tee /etc/apt/sources.list.d/mssql-release.list && \
+    apt-get update && \
+    ACCEPT_EULA=Y apt-get install -y msodbcsql17 mssql-tools
 
+# Install Python packages
+RUN python3 -m venv /venv && \
+    /venv/bin/pip install pyodbc Faker pandas
+
+# Set environment variable to use the Python virtual environment
+ENV PATH="/venv/bin:$PATH"
+
+# Create application directory and set it as the working directory
 RUN mkdir /home/app
 WORKDIR /home/app
 
-COPY insert_data.py /home/app/insert_data.py
+# Copy application files into the container
+COPY generate_order_data.py /home/app/generate_order_data.py
 COPY requirements.txt /home/app/requirements.txt
-
-RUN python3 -m venv venv && source venv/bin/activate && pip install pyodbc Faker
+COPY mssql.py /home/app/mssql.py
+COPY /data /home/app/data

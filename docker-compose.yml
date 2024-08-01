@@ -15,6 +15,8 @@ services:
       - mssql_data:/var/opt/mssql
     profiles:
       - batch
+    networks:
+      - db
 
   minio:
     image: bitnami/minio:latest
@@ -162,12 +164,16 @@ services:
 
   demo-script:
     container_name: demo-script
-    build: source-app/
+    build: source_app/
     command: ["tail", "-f", "/dev/null"]
     volumes:
-      - ./source-app/insert_data.py:/home/app/insert_data.py
+      - ./source_app/generate_order_data.py:/home/app/generate_order_data.py
+      - ./source_app/mssql.py:/home/app/mssql.py
+      - ./source_app/requirements.txt:/home/app/requirements.txt
     profiles:
       - batch
+    networks:
+      - db
 
 volumes:
   mssql_data:
@@ -183,3 +189,7 @@ volumes:
   coordinator_var: {}
   router_var: {}
   druid_shared: {}
+
+networks:
+  db:
+  
