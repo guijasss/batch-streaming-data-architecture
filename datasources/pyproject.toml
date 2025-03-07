@@ -1,0 +1,17 @@
+[tool.poetry]
+name = "datasources"
+version = "0.1.0"
+description = "Provides abstractions to generate fake streaming and batch data."
+authors = ["Guilherme Samuel <guilhermesamuel79@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = ">=3.9,<4.0"
+sqlalchemy = "^2.0.38"
+pandas = "2.2.0"
+pyarrow = "^19.0.1"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
